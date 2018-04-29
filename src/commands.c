@@ -3,6 +3,11 @@
 #include <string.h>
 #include <assert.h>
 
+#include <unistd.h>
+#include "sys/types.h"
+#include "sys/wait.h"
+
+
 #include "commands.h"
 #include "built_in.h"
 
@@ -12,9 +17,13 @@ static struct built_in_command built_in_commands[] = {
   { "fg", do_fg, validate_fg_argv }
 };
 
+// export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin;
+char PATH[4096]="/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin";
+
 static int is_built_in_command(const char* command_name)
 {
-  static const int n_built_in_commands = sizeof(built_in_commands) / sizeof(built_in_commands[0]);
+  static const int n_built_in_commands 
+  = sizeof(built_in_commands) / sizeof(built_in_commands[0]);
 
   for (int i = 0; i < n_built_in_commands; ++i) {
     if (strcmp(command_name, built_in_commands[i].command_name) == 0) {
@@ -26,7 +35,10 @@ static int is_built_in_command(const char* command_name)
 }
 
 /*
- * Description: Currently this function only handles single built_in commands. You should modify this structure to launch process and offer pipeline functionality.
+ * Description: 
+ Currently this function only handles single built_in commands.
+  You should modify this structure to launch process 
+  and offer pipeline functionality.
  */
 int evaluate_command(int n_commands, struct single_command (*commands)[512])
 {
@@ -50,13 +62,52 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
     } else if (strcmp(com->argv[0], "exit") == 0) {
       return 1;
     } else {
-      fprintf(stderr, "%s: command not found\n", com->argv[0]);
-      return -1;
+      pid_t pid;
+      int status;
+
+      pid = fork();
+      
+
+      if(pid == 0){    //child
+        execv(com->argv[0], com->argv);
+        fprintf(stderr, "%s: command not found\n", com->argv[0]);
+        printf("child running\n");
+        exit(1);
+      }
+      else if(pid!=0){   //parent
+        // int status;
+        printf("parent running\n");
+        wait(&status);
+        printf("finish\n");
+        return 0;
+      }
     }
   }
 
   return 0;
 }
+
+// char* path_res(char* argv){
+//   char buf[4096];
+//   putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin");
+//   char* varname = getenv("PATH");
+//   strcpy(buf, varname);
+
+//   char *saveptr = NULL;
+//   char *tok = strtok_r(buf, ":", &saveptr);
+//   char* res;
+
+//   while (tok != NULL) {
+//     printf("%s\n",tok);
+//     tok = strtok_r(NULL, ":", &saveptr);
+
+//     if(!=NULL){
+//       res = tok;
+//       break;
+//     }
+//   }
+//   return res;
+// }
 
 void free_commands(int n_commands, struct single_command (*commands)[512])
 {
