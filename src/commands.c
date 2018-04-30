@@ -64,12 +64,16 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
     } else {
       pid_t pid;
       int status;
-
+      char* res;
+      
       pid = fork();
       
 
       if(pid == 0){    //child
-        execv(com->argv[0], com->argv);
+        putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin");
+        path_res(com->argv[0],com->argv);
+        //execv(res, com->argv);
+        //execv(com->argv[0],com->argv);
         fprintf(stderr, "%s: command not found\n", com->argv[0]);
         printf("child running\n");
         exit(1);
@@ -79,6 +83,10 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
         printf("parent running\n");
         wait(&status);
         printf("finish\n");
+        
+        // putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin");
+        // char* varname = getenv("PATH");
+        // printf("%s\n",varname);
         return 0;
       }
     }
@@ -87,27 +95,25 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
   return 0;
 }
 
-// char* path_res(char* argv){
-//   char buf[4096];
-//   putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin");
-//   char* varname = getenv("PATH");
-//   strcpy(buf, varname);
+void path_res(char* argv0, char* argv1[]){
+  char buf[4096];
+  //putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin");
+  char* varname = getenv("PATH");
+  strcpy(buf, varname);
 
-//   char *saveptr = NULL;
-//   char *tok = strtok_r(buf, ":", &saveptr);
-//   char* res;
+  char *saveptr = NULL;
+  char *tok = strtok_r(buf, ":", &saveptr);
+  char res[1024];
 
-//   while (tok != NULL) {
-//     printf("%s\n",tok);
-//     tok = strtok_r(NULL, ":", &saveptr);
+  while (tok != NULL) {
+    strcpy(res,tok);
+    strcat(res, argv0);
 
-//     if(!=NULL){
-//       res = tok;
-//       break;
-//     }
-//   }
-//   return res;
-// }
+    execv(res,argv1);
+
+    tok = strtok_r(NULL, ":", &saveptr);
+  }
+}
 
 void free_commands(int n_commands, struct single_command (*commands)[512])
 {
