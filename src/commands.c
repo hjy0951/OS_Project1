@@ -107,6 +107,7 @@ void path_res(char* argv0, char* argv1[]){
 
   while (tok != NULL) {
     strcpy(res,tok);
+    strcat(res,"/");
     strcat(res, argv0);
 
     execv(res,argv1);
