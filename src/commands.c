@@ -70,7 +70,7 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
       
 
       if(pid == 0){    //child
-        putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin");
+        putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
         path_res(com->argv[0],com->argv);
         //execv(res, com->argv);
         //execv(com->argv[0],com->argv);
@@ -97,24 +97,29 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
 
 void path_res(char* argv0, char* argv1[]){
   char buf[4096];
+
+  execv(argv0,argv1); //execution about absolute path
+  
   //putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin");
   char* varname = getenv("PATH");
   strcpy(buf, varname);
 
+ 
   char *saveptr = NULL;
   char *tok = strtok_r(buf, ":", &saveptr);
   char res[1024];
 
-  while (tok != NULL) {
+   while (tok != NULL) {
     strcpy(res,tok);
-    strcat(res,"/");
+    strcat(res,"/"); 
     strcat(res, argv0);
-
+    printf("%s\n",res);
     execv(res,argv1);
 
     tok = strtok_r(NULL, ":", &saveptr);
-  }
+   }
 }
+ 
 
 void free_commands(int n_commands, struct single_command (*commands)[512])
 {
