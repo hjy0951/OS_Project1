@@ -68,7 +68,7 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
       
       pid = fork();
       
-
+      printf("test\n");
       if(pid == 0){    //child
         putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
         path_res(com->argv[0],com->argv);
