@@ -7,6 +7,9 @@
 #include "sys/types.h"
 #include "sys/wait.h"
 
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <errno.h>
 
 #include "commands.h"
 #include "built_in.h"
@@ -18,7 +21,56 @@ static struct built_in_command built_in_commands[] = {
 };
 
 // export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin;
-char PATH[4096]="/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin";
+//char PATH[4096]="/usr/local/bin:/usr/bin:/bin:/usr/sbin/:/sbin";
+
+//ing
+#define CLIENT_PATH "tpf_unix_sock.client"
+#define SERVER_PATH "tpf_unix_sock.server"
+
+struct sockaddr_un server_sockaddr;
+struct sockaddr_un client_sockaddr;
+
+make_Client(){
+  int client_sock, rc, len;
+
+  memset(&server_sockaddr,0,sizeof(struct sockaddr_un));
+  memset(&client_sockaddr,0,sizeof(struct sockaddr_un));
+
+  client_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+  if(client_sock == -1){
+    printf("SOCKET ERROR = %d\n", sock_errno());
+    exit(1);
+  }
+
+  client_sockaddr.sun_family = AF_UNIX;
+  strcpy(client_sockaddr.sun_path, CLIENT_PATH);
+  len = sizeof(client_sockaddr);
+
+  unlink(CLIENT_PATH);
+  rc = bind(client_sock, (struct sockaddr *) &client_sockaddr, len);
+  if(rc == -1){
+    printf("BIND ERROR : %d\n", sock_errno());
+    close(client_sock);
+    exit(1);
+  }
+
+  server_sockaddr.sun_family = AF_UNIX;
+  strcpy(server_sockaddr.sun_path, SERVER_PATH);
+  rc = connet(client_sock, (struct sockaddr*) &server_sockaddr,len);
+  if(rc == -1){
+    printf("CONNECT ERROR = %d\n", sock_errno());
+    close(client_sock);
+    exit(1);
+  }
+
+  int out = dup(stdout);
+
+  dup2(client_sock, stdout);
+  close(client_sock);
+
+}
+//
+
 
 static int is_built_in_command(const char* command_name)
 {
@@ -65,13 +117,57 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
       pid_t pid;
       int status;
       char* res;
+
+      printf("%d\n",n_commands);
       
       pid = fork();
       
-      printf("test\n");
+
       if(pid == 0){    //child
         putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
-        path_res(com->argv[0],com->argv);
+        if(n_commands == 1)
+          path_res(com->argv[0],com->argv);
+
+        //ing
+        else if(n_commands == 2){
+          //make server socket
+          int server_sock, rc, len;
+          int backlog = 10; 
+
+          struct sockaddr_un server_sockaddr;
+          struct sockaddr_un client_sockaddr;
+
+          memset(&server_sockaddr,0,sizeof(struct sockaddr_un));
+          memset(&client_sockaddr,0,sizeof(struct sockaddr_un));
+
+          server_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+          if(server_sock == -1){
+            printf("SOCKET ERROR = %d\n", sock_errno());
+            exit(1);
+          }
+
+          server_sockaddr.sun_family = AF_UNIX;
+          strcpy(server_sockaddr.sun_path, SERVER_PATH);
+          len = sizeof(server_sockaddr);
+
+          unlink(SERVER_PATH);
+          rc = bind(server_sock, (struct sockaddr *) &server_sockaddr, len);
+          if(rc == -1){
+            printf("BIND ERROR : %d\n", sock_errno());
+            close(server_sock);
+            exit(1);
+          }
+
+          rc = listen(server_sock, backlog);
+          if(rc == -1){
+            printf("LISTEN ERROR: %d\n", sock_errno());
+            close(server_sock);
+            exit(1);
+          }
+          printf("listening...\n");
+
+        }
+        //
         //execv(res, com->argv);
         //execv(com->argv[0],com->argv);
         fprintf(stderr, "%s: command not found\n", com->argv[0]);
@@ -91,7 +187,6 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
       }
     }
   }
-
   return 0;
 }
 
@@ -110,14 +205,14 @@ void path_res(char* argv0, char* argv1[]){
   char res[1024];
 
    while (tok != NULL) {
-    strcpy(res,tok);
-    strcat(res,"/"); 
-    strcat(res, argv0);
-    printf("%s\n",res);
-    execv(res,argv1);
+     strcpy(res,tok);
+     strcat(res,"/"); 
+     strcat(res, argv0);
+     printf("%s\n",res);
+     execv(res,argv1);
 
-    tok = strtok_r(NULL, ":", &saveptr);
-   }
+     tok = strtok_r(NULL, ":", &saveptr);
+    }
 }
  
 
