@@ -11,6 +11,8 @@
 #include <sys/un.h>
 #include <errno.h>
 
+#include <pthread.h>
+
 #include "commands.h"
 #include "built_in.h"
 
@@ -30,12 +32,13 @@ static struct built_in_command built_in_commands[] = {
 struct sockaddr_un server_sockaddr;
 struct sockaddr_un client_sockaddr;
 
-make_Client(){
+void* make_Client(void* threadid){ // threadid : ... what is this?
   int client_sock, rc, len;
 
   memset(&server_sockaddr,0,sizeof(struct sockaddr_un));
   memset(&client_sockaddr,0,sizeof(struct sockaddr_un));
 
+  //make client socket
   client_sock = socket(AF_UNIX, SOCK_STREAM, 0);
   if(client_sock == -1){
     printf("SOCKET ERROR = %d\n", sock_errno());
@@ -63,11 +66,16 @@ make_Client(){
     exit(1);
   }
 
-  int out = dup(stdout);
-
+  // int out = dup(stdout);  //out = standard output
+  // dup2(client_sock, stdout); // stdout = client_sock, out = stdout
+  // evaluate_command(1,);
+  // close(client_sock);
+  // dup2(out,stdout); // out = client_sock = stdout
+  // close(client_sock);
   dup2(client_sock, stdout);
   close(client_sock);
 
+  pthread_exit(NULL);
 }
 //
 
@@ -165,6 +173,12 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
             exit(1);
           }
           printf("listening...\n");
+
+          pthread_t thread;
+
+          rc = pthread_create(&thread, NULL, make_Client,(void*)com->argv);//
+          //last argument : a single argument that may be passed to start_routine
+          //priority , nust void type
 
         }
         //
