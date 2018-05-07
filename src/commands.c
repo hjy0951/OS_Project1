@@ -32,8 +32,20 @@ static struct built_in_command built_in_commands[] = {
 struct sockaddr_un server_sockaddr;
 struct sockaddr_un client_sockaddr;
 
-void* make_Client(void* threadid){ // threadid : ... what is this?
+
+void* make_Client(void* threadid){ // threadid : create()'s last arguemnt'
   int client_sock, rc, len;
+  int num = 0;
+  char** commands = (char**)threadid;
+
+  while(commands != NULL)
+    num++;
+
+  struct single_comand* sc = (char**)threadid + num;
+  //struct single_command* com = *commands + ti;
+  // sc->argc = num;
+  // sc->argv = (char**)threadid;
+  
 
   memset(&server_sockaddr,0,sizeof(struct sockaddr_un));
   memset(&client_sockaddr,0,sizeof(struct sockaddr_un));
@@ -41,7 +53,7 @@ void* make_Client(void* threadid){ // threadid : ... what is this?
   //make client socket
   client_sock = socket(AF_UNIX, SOCK_STREAM, 0);
   if(client_sock == -1){
-    printf("SOCKET ERROR = %d\n", sock_errno());
+    printf("SOCKET ERROR\n");
     exit(1);
   }
 
@@ -52,28 +64,30 @@ void* make_Client(void* threadid){ // threadid : ... what is this?
   unlink(CLIENT_PATH);
   rc = bind(client_sock, (struct sockaddr *) &client_sockaddr, len);
   if(rc == -1){
-    printf("BIND ERROR : %d\n", sock_errno());
+    printf("BIND ERROR\n");
     close(client_sock);
     exit(1);
   }
 
   server_sockaddr.sun_family = AF_UNIX;
   strcpy(server_sockaddr.sun_path, SERVER_PATH);
-  rc = connet(client_sock, (struct sockaddr*) &server_sockaddr,len);
+  rc = connect(client_sock, (struct sockaddr*) &server_sockaddr,len);
   if(rc == -1){
-    printf("CONNECT ERROR = %d\n", sock_errno());
+    printf("CONNECT ERROR\n");
     close(client_sock);
     exit(1);
   }
 
-  // int out = dup(stdout);  //out = standard output
-  // dup2(client_sock, stdout); // stdout = client_sock, out = stdout
-  // evaluate_command(1,);
-  // close(client_sock);
-  // dup2(out,stdout); // out = client_sock = stdout
-  // close(client_sock);
-  dup2(client_sock, stdout);
+  int out = dup(stdout);  //out = standard output
+
+  dup2(client_sock, stdout); // stdout = client_sock, out = stdout
+  evaluate_command(1, sc);
   close(client_sock);
+
+  dup2(out,stdout); // out = client_sock = stdout
+  close(client_sock);
+  // dup2(client_sock, stdout);
+  // close(client_sock);
 
   pthread_exit(NULL);
 }
@@ -139,7 +153,7 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
         //ing
         else if(n_commands == 2){
           //make server socket
-          int server_sock, rc, len;
+          int server_sock, rc, len, client_sock;
           int backlog = 10; 
 
           struct sockaddr_un server_sockaddr;
@@ -150,7 +164,7 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
 
           server_sock = socket(AF_UNIX, SOCK_STREAM, 0);
           if(server_sock == -1){
-            printf("SOCKET ERROR = %d\n", sock_errno());
+            printf("SOCKET ERROR\n");
             exit(1);
           }
 
@@ -161,27 +175,68 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
           unlink(SERVER_PATH);
           rc = bind(server_sock, (struct sockaddr *) &server_sockaddr, len);
           if(rc == -1){
-            printf("BIND ERROR : %d\n", sock_errno());
+            printf("BIND ERROR\n");
             close(server_sock);
             exit(1);
           }
 
           rc = listen(server_sock, backlog);
           if(rc == -1){
-            printf("LISTEN ERROR: %d\n", sock_errno());
+            printf("LISTEN ERROR\n");
             close(server_sock);
             exit(1);
           }
           printf("listening...\n");
 
+          // client_sock = accept(server_sock,(struct sockaddr*)&client_sockaddr, &len);
+          // if(client_sock == -1){
+          //   printf("ACCEPT ERROR: %d\n", sock_errno());
+          //   close(server_sock);
+          //   close(clent_sock);
+          //   exit(1);
+          // }
+
           pthread_t thread;
+          int status;
 
           rc = pthread_create(&thread, NULL, make_Client,(void*)com->argv);//
+          printf("createing thread\n");
           //last argument : a single argument that may be passed to start_routine
-          //priority , nust void type
+          //must void type, make_client's variable
+          if(rc < 0){
+            printf("CREATING THREAD ERROR\n");
+            exit(-1);
+          }
 
+          client_sock = accept(server_sock,(struct sockaddr*)&client_sockaddr, &len);
+          printf("accepting\n");
+          if(client_sock == -1){
+            printf("ACCEPT ERROR\n");
+            close(server_sock);
+            close(client_sock);
+            exit(1);
+          }
+
+          pthread_join(thread, (void**)&status);
+
+          int in = dup(stdin);
+
+          dup2(client_sock, stdin);
+          path_res(com->argv[0],com->argv);
+          close(client_sock);
+          dup2(in, stdin);
+
+          // int out = dup(stdout);  //out = standard output
+
+          // dup2(client_sock, stdout); // stdout = client_sock, out = stdout
+          // evaluate_command(1, sc);
+          // close(client_sock);
+
+          // dup2(out,stdout); // out = client_sock = stdout
+          // close(client_sock);
         }
         //
+
         //execv(res, com->argv);
         //execv(com->argv[0],com->argv);
         fprintf(stderr, "%s: command not found\n", com->argv[0]);
@@ -190,6 +245,7 @@ int evaluate_command(int n_commands, struct single_command (*commands)[512])
       }
       else if(pid!=0){   //parent
         // int status;
+        
         printf("parent running\n");
         wait(&status);
         printf("finish\n");
