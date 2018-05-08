@@ -6,12 +6,19 @@
 #include "built_in.h"
 #include "utils.h"
 
+#include "signal_handlers.h"
+
+#define SIGINT 2
+
 int main()
 {
   char buf[8096];
   putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
-  
+ 
+  catch_sigint(SIGINT);
+
   while (1) {
+    //catch_sigint(SIGINT);
     fgets(buf, 8096, stdin);
 
     struct single_command commands[512];
