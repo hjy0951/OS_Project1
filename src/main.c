@@ -9,6 +9,7 @@
 #include "signal_handlers.h"
 
 #define SIGINT 2
+#define SIGSTP 20
 
 int main()
 {
@@ -16,6 +17,7 @@ int main()
   putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
  
   catch_sigint(SIGINT);
+  catch_sigstp(SIGSTP);
 
   while (1) {
     //catch_sigint(SIGINT);
