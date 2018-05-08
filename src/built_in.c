@@ -44,7 +44,7 @@ int do_fg(int argc, char** argv) {
 int validate_cd_argv(int argc, char** argv) {
   if (argc != 2) return 0;
   if (strcmp(argv[0], "cd") != 0) return 0;
-
+  
   struct stat buf;
   stat(argv[1], &buf);
 

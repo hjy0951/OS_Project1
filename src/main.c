@@ -9,7 +9,8 @@
 int main()
 {
   char buf[8096];
-
+  putenv("PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
+  
   while (1) {
     fgets(buf, 8096, stdin);
 
